@@ -180,24 +180,35 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
   #report{display:block;}
   @page{size:A4; margin:14mm;}
 }
-#report{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#111; font-size:11pt;}
-#report .rep-h{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #8d153a; padding-bottom:8px; margin-bottom:14px;}
-#report .brand{font-size:24pt; font-weight:800; color:#8d153a; letter-spacing:-0.5px;}
-#report .brand small{display:block; font-size:10pt; color:#b8860b; font-weight:600; letter-spacing:0;}
-#report .meta{text-align:right; font-size:9pt; color:#555;}
-#report .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0 4px;}
-#report .kpi{border:1px solid #ddd; border-radius:8px; padding:8px 10px;}
-#report .kpi .l{font-size:8pt; text-transform:uppercase; color:#666; letter-spacing:0.5px;}
-#report .kpi .v{font-size:13pt; font-weight:800; margin-top:2px;}
-#report h2{font-size:12pt; color:#8d153a; margin:18px 0 6px; padding-bottom:3px; border-bottom:1px solid #e5d0d7;}
-#report table{width:100%; border-collapse:collapse; font-size:9.5pt;}
-#report th{text-align:left; background:#f6eef1; color:#5a1026; padding:5px 6px; font-weight:700;}
-#report td{padding:4px 6px; border-bottom:1px solid #eee;}
-#report td.n, #report th.n{text-align:right; white-space:nowrap;}
-#report tr.tot td{font-weight:800; border-top:2px solid #ccc;}
-#report .pos{color:#1e8e3e;} #report .neg{color:#c62828;}
-#report tr{page-break-inside:avoid;}
-#report .foot{margin-top:18px; font-size:8pt; color:#888; text-align:center;}
+.report{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#111; font-size:11pt;}
+.report .rep-h{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #8d153a; padding-bottom:8px; margin-bottom:14px;}
+.report .brand{font-size:24pt; font-weight:800; color:#8d153a; letter-spacing:-0.5px;}
+.report .brand small{display:block; font-size:10pt; color:#b8860b; font-weight:600; letter-spacing:0;}
+.report .meta{text-align:right; font-size:9pt; color:#555;}
+.report .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0 4px;}
+.report .kpi{border:1px solid #ddd; border-radius:8px; padding:8px 10px;}
+.report .kpi .l{font-size:8pt; text-transform:uppercase; color:#666; letter-spacing:0.5px;}
+.report .kpi .v{font-size:13pt; font-weight:800; margin-top:2px;}
+.report h2{font-size:12pt; color:#8d153a; margin:18px 0 6px; padding-bottom:3px; border-bottom:1px solid #e5d0d7;}
+.report table{width:100%; border-collapse:collapse; font-size:9.5pt;}
+.report th{text-align:left; background:#f6eef1; color:#5a1026; padding:5px 6px; font-weight:700;}
+.report td{padding:4px 6px; border-bottom:1px solid #eee;}
+.report td.n, .report th.n{text-align:right; white-space:nowrap;}
+.report tr.tot td{font-weight:800; border-top:2px solid #ccc;}
+.report .pos{color:#1e8e3e;} .report .neg{color:#c62828;}
+.report tr{page-break-inside:avoid;}
+.report .foot{margin-top:18px; font-size:8pt; color:#888; text-align:center;}
+
+.tools{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:14px 0;}
+.tool-btn{border:none; border-radius:14px; padding:12px 6px; background:var(--faint); color:var(--text); font-weight:700; font-size:13px; display:flex; flex-direction:column; align-items:center; gap:4px;}
+.tool-btn .i{font-size:20px;}
+.tool-btn.warn{background:rgba(255,69,58,0.14); color:var(--danger);}
+.tool-note{font-size:12px; color:var(--subtle); padding:0 2px 12px; line-height:1.45;}
+.sheet textarea{min-height:170px;}
+.sheet-actions{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.sheet-actions .btn{margin-top:10px;}
+.btn.ghost{background:var(--faint); color:var(--accent); box-shadow:none;}
+.ok{display:none; margin-top:10px; padding:10px 12px; border-radius:12px; background:rgba(40,199,111,0.14); color:var(--success); font-size:13px;}
 </style>
 </head>
 <body>
@@ -275,6 +286,19 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
     <div class="glass card" id="loanList"></div>
   </div>
 
+  <div class="section">
+    <div class="section-head"><span class="section-title">Months &amp; backup</span></div>
+    <div class="glass card">
+      <div class="tools">
+        <button class="tool-btn" id="newMonthBtn" onclick="startNewMonth()"><span class="i">🗓️</span><span id="newMonthTxt">New month</span></button>
+        <button class="tool-btn" onclick="openBackup()"><span class="i">⬆️</span>Back up</button>
+        <button class="tool-btn" onclick="openRestore()"><span class="i">⬇️</span>Restore</button>
+      </div>
+      <div class="tool-note">On the 21st, tap <b>New month</b> before pasting your fresh note. It saves this month's summary and carries each loan's balance forward.</div>
+      <div id="monthList"></div>
+    </div>
+  </div>
+
   <div class="section" id="txSection" style="display:none;">
     <div class="section-head"><span class="section-title">Transactions</span><span class="section-sub" id="txCount"></span></div>
     <div class="chips" id="chips"></div>
@@ -295,7 +319,18 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
   </div>
 </div>
 
-<div id="report"></div>
+<div class="overlay" id="dataOverlay" onclick="if(event.target===this) closeData()">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-head"><span class="t" id="dataTitle">Back up</span><button class="x" onclick="closeData()">✕</button></div>
+    <div class="tool-note" id="dataHint"></div>
+    <textarea id="dataBox" spellcheck="false"></textarea>
+    <div id="dataErr" class="error"></div>
+    <div id="dataOk" class="ok"></div>
+    <div class="sheet-actions" id="dataActions"></div>
+  </div>
+</div>
+<div id="report" class="report"></div>
 <script>
 const PALETTE=['#0a84ff','#ff9f0a','#30d158','#ff453a','#bf5af2','#ff375f','#64d2ff','#ffd60a'];
 const ICONS={'Groceries':'🛒','Transport':'🚗','Food & dining':'🍽️','Social & gifts':'🎁','Bills':'🧾','Health':'💊','Shopping':'🛍️','Other':'📦',
@@ -478,7 +513,7 @@ loans.forEach(l=>{
     l.startBalance = h ? h.balanceAfter + h.payment - h.interest : l.balance;
     l.startDate = h ? h.date : l.lastUpdated;
   }
-  l.history=l.history||[]; l.ignored=l.ignored||[];
+  l.history=l.history||[]; l.ignored=l.ignored||[]; l.closedSigs=l.closedSigs||[]; l.archived=l.archived||[];
 });
 store(LOAN_KEY, JSON.stringify(loans));
 const saveLoans=()=>store(LOAN_KEY, JSON.stringify(loans));
@@ -528,6 +563,7 @@ function applyLoanSettlements(arr){
     const sig=`${t.date}|${t.details}|${t.amount}`;
     if((loan.history||[]).some(h=>h.sig===sig)) return;
     if((loan.ignored||[]).includes(sig)) return;
+    if((loan.closedSigs||[]).includes(sig)) return;
     applyPayment(loan,t.amount,t.date,sig); changed=true;
   });
   if(changed){saveLoans();}
@@ -556,6 +592,7 @@ function renderLoans(){
       ${paidPct!==null?`<div class="bar" style="height:7px;margin-top:14px"><span style="width:${paidPct.toFixed(1)}%;background:var(--success)"></span></div>
       <div class="loan-meta"><span>${paidPct.toFixed(0)}% of ${rs(l.principal)} repaid</span><span>~${rs(mi)}/mo interest</span></div>`
       :`<div class="loan-meta"><span>Updated ${esc(l.lastUpdated)}</span><span>~${rs(mi)}/mo interest</span></div>`}
+      ${(l.archived||[]).length?`<div class="loan-meta"><span>Earlier months: ${l.archived.length} payment${l.archived.length>1?'s':''}</span><span>${rs(l.archived.reduce((a,h)=>a+h.payment,0))} paid</span></div>`:''}
       ${hist?`<div class="loan-hist">${hist}</div>`:''}
       ${(l.ignored||[]).length?`<div class="loan-hist"><div class="rh">Removed payments</div>${l.ignored.map((sig,i)=>{const p=sig.split('|'); return `<div class="h"><div>${esc(p[0]||'')}<small>${esc(p[1]||'')}</small></div><div class="h-right"><b style="color:var(--subtle)">${rs(parseFloat(p[2])||0)}</b><button class="rm restore" onclick="restorePayment('${l.id}',${i})">Restore</button></div></div>`;}).join('')}</div>`:''}
       <div class="loan-btns"><button class="edit" onclick="openModal('${l.id}')">Edit</button><button class="del" onclick="deleteLoan('${l.id}')">${confirming?'Tap again to delete':'Delete loan'}</button></div>
@@ -623,6 +660,128 @@ function refreshAll(){
 }
 
 
+/* ---------- Months ---------- */
+const MONTHS_KEY='rupio_months_v1';
+let months=[]; try{ months=JSON.parse(read(MONTHS_KEY)||'[]'); if(!Array.isArray(months)) months=[]; }catch(e){ months=[]; }
+const saveMonths=()=>store(MONTHS_KEY, JSON.stringify(months));
+let nmPending=false, nmTimer=null, pendingMonth=null, monthTimer=null;
+
+function startNewMonth(){
+  const txt=document.getElementById('newMonthTxt'), btn=document.getElementById('newMonthBtn');
+  if(!nmPending){
+    nmPending=true; txt.textContent='Tap to confirm'; btn.classList.add('warn');
+    clearTimeout(nmTimer); nmTimer=setTimeout(()=>{nmPending=false; txt.textContent='New month'; btn.classList.remove('warn');},3500);
+    return;
+  }
+  clearTimeout(nmTimer); nmPending=false; txt.textContent='New month'; btn.classList.remove('warn');
+
+  if(currentTx.length){
+    const tx=currentTx;
+    const I=sum(tx.filter(t=>t.type==='Income')), E=sum(tx.filter(t=>t.type==='Expense'));
+    const CS=sum(tx.filter(t=>t.type==='Settlement'&&t.category==='Card settlement'));
+    const LS=sum(tx.filter(t=>t.type==='Settlement'&&t.category!=='Card settlement'));
+    months.unshift({label:cycleLabel(tx).replace('Cycle · ',''), closedOn:new Date().toISOString().slice(0,10),
+      income:I, spending:E, cardSettlements:CS, loanSettlements:LS, left:I-E-CS-LS, entries:tx.length});
+    saveMonths();
+  }
+  loans.forEach(l=>{
+    l.closedSigs=[...new Set([...(l.closedSigs||[]), ...l.history.map(h=>h.sig), ...(l.ignored||[])])];
+    l.archived=[...(l.archived||[]), ...l.history];
+    l.history=[]; l.ignored=[];
+    l.startBalance=l.balance; l.startDate=l.lastUpdated;
+  });
+  saveLoans();
+
+  currentTx=[]; store(DATA_KEY,'');
+  document.getElementById('dataInput').value='';
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('txSection').style.display='none';
+  document.getElementById('emptyState').style.display='block';
+  document.getElementById('cycleLabel').textContent='New cycle started';
+  document.getElementById('pasteStatus').textContent='New month started — paste your fresh note';
+  togglePaste(false);
+  renderLoans(); renderMonths();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderMonths(){
+  const el=document.getElementById('monthList');
+  if(!months.length){ el.innerHTML='<div class="empty-mini" style="padding:8px 0 16px">No past months yet</div>'; return; }
+  el.innerHTML=months.map((m,i)=>{
+    const conf=pendingMonth===i;
+    return `<div class="row">
+      <div class="ic" style="background:${tint('#8d153a')}">🗓️</div>
+      <div class="mid"><div class="nm" style="white-space:normal">${esc(m.label)}</div>
+        <div class="mt">Income ${rs(m.income)} · Spent ${rs(m.spending)} · Settled ${rs(m.cardSettlements+m.loanSettlements)}</div></div>
+      <div class="h-right"><div class="amt ${m.left<0?'neg':'pos'}">${rs(m.left)}</div>
+      <button class="rm ${conf?'on':''}" onclick="removeMonth(${i})">${conf?'Remove':'✕'}</button></div></div>`;
+  }).join('');
+}
+function removeMonth(i){
+  if(pendingMonth!==i){ pendingMonth=i; renderMonths(); clearTimeout(monthTimer); monthTimer=setTimeout(()=>{pendingMonth=null; renderMonths();},3000); return; }
+  months.splice(i,1); pendingMonth=null; saveMonths(); renderMonths();
+}
+
+/* ---------- Backup / Restore ---------- */
+function closeData(){ document.getElementById('dataOverlay').classList.remove('open'); }
+function dataSheet(title,hint,value,readonly,actions){
+  const g=x=>document.getElementById(x);
+  g('dataTitle').textContent=title; g('dataHint').innerHTML=hint;
+  const box=g('dataBox'); box.style.display=''; box.value=value; box.readOnly=readonly;
+  box.placeholder=readonly?'':'Paste your Rupio backup text here';
+  g('dataErr').style.display='none'; g('dataOk').style.display='none';
+  g('dataActions').innerHTML=actions;
+  g('dataOverlay').classList.add('open');
+}
+function backupText(){
+  return JSON.stringify({app:'Rupio', version:1, exportedAt:new Date().toISOString(),
+    loans, months, note:read(DATA_KEY)||''});
+}
+function openBackup(){
+  const canShare=!!navigator.share;
+  dataSheet('Back up',
+    'Save this text in a note called <b>Rupio backup</b> (it syncs with iCloud). Use <b>Restore</b> to bring it back on any device.',
+    backupText(), true,
+    (canShare?`<button class="btn" onclick="shareBackup()">Share to Notes</button>`:'')+
+    `<button class="btn ${canShare?'ghost':''}" onclick="copyBackup()" style="${canShare?'':'grid-column:1 / -1'}">Copy</button>`);
+}
+function showOk(msg){ const o=document.getElementById('dataOk'); o.textContent=msg; o.style.display='block'; }
+function showErr(msg){ const e=document.getElementById('dataErr'); e.textContent=msg; e.style.display='block'; }
+async function copyBackup(){
+  const box=document.getElementById('dataBox'), text=box.value;
+  try{ await navigator.clipboard.writeText(text); showOk('Copied — paste it into a note'); return; }catch(e){}
+  try{ box.readOnly=false; box.focus(); box.select(); box.setSelectionRange(0,text.length); const ok=document.execCommand('copy'); box.readOnly=true;
+       if(ok){ showOk('Copied — paste it into a note'); return; } }catch(e){}
+  showErr('Could not copy automatically — press and hold the text, Select All, then Copy');
+}
+async function shareBackup(){
+  try{ await navigator.share({title:'Rupio backup', text:document.getElementById('dataBox').value}); }
+  catch(e){ if(e && e.name!=='AbortError') showErr('Sharing did not work — use Copy instead'); }
+}
+function openRestore(){
+  dataSheet('Restore',
+    'Paste the text from your <b>Rupio backup</b> note. This <b>replaces</b> the loans, past months and saved note on this device.',
+    '', false, `<button class="btn" style="grid-column:1 / -1" onclick="doRestore()">Restore</button>`);
+  setTimeout(()=>document.getElementById('dataBox').focus(),250);
+}
+function doRestore(){
+  let d;
+  try{ d=JSON.parse(document.getElementById('dataBox').value.trim()); }catch(e){ showErr('That doesn’t look like a Rupio backup — copy the whole text'); return; }
+  if(!d || d.app!=='Rupio' || !Array.isArray(d.loans)){ showErr('That doesn’t look like a Rupio backup'); return; }
+  loans=d.loans.map(l=>Object.assign({history:[],ignored:[],closedSigs:[],archived:[]},l));
+  loans.forEach(l=>{ if(l.startBalance===undefined){ l.startBalance=l.balance; l.startDate=l.lastUpdated; } });
+  months=Array.isArray(d.months)?d.months:[];
+  saveLoans(); saveMonths();
+  const note=typeof d.note==='string'?d.note:'';
+  store(DATA_KEY,note);
+  document.getElementById('dataInput').value=note;
+  if(note.trim()) generate(true);
+  else{ currentTx=[]; document.getElementById('dashboard').style.display='none'; document.getElementById('txSection').style.display='none'; document.getElementById('emptyState').style.display='block'; }
+  renderLoans(); renderMonths();
+  showOk('Restored '+loans.length+' loan'+(loans.length===1?'':'s')+' and '+months.length+' past month'+(months.length===1?'':'s'));
+  setTimeout(closeData,1400);
+}
+
 /* ---------- PDF export (print to PDF) ---------- */
 function exportPDF(){
   if(!currentTx.length){
@@ -674,15 +833,69 @@ function exportPDF(){
     <h2>All transactions</h2>${txHtml}
     <div class="foot">Rupio · personal expense report</div>`;
 
-  const oldTitle=document.title;
-  document.title='Rupio report '+cyc.replace(/\s/g,' ');
-  const restore=()=>{document.title=oldTitle; window.removeEventListener('afterprint',restore);};
-  window.addEventListener('afterprint',restore);
-  setTimeout(()=>window.print(),100);
+  makePdf(cyc);
+}
+
+/* Real PDF file (works in the Home Screen app, where printing is blocked) */
+let pdfLib=null, lastPdf=null;
+function loadPdfLib(){
+  if(window.html2pdf) return Promise.resolve();
+  if(pdfLib) return pdfLib;
+  pdfLib=new Promise((res,rej)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    sc.onload=res; sc.onerror=()=>{pdfLib=null; rej(new Error('load failed'));};
+    document.head.appendChild(sc);
+  });
+  return pdfLib;
+}
+async function makePdf(cyc){
+  const name=('Rupio report '+cyc).replace(/[^\w\s\u2013-]/g,'').replace(/\s+/g,' ').trim()+'.pdf';
+  pdfSheet('Making your PDF…','This takes a few seconds.',false,false);
+  const r=document.getElementById('report');
+  try{
+    await loadPdfLib();
+    const el=document.createElement('div');
+    el.className='report'; el.innerHTML=r.innerHTML;
+    el.style.cssText='width:718px;background:#fff;color:#111;';
+    const blob=await html2pdf().set({
+      margin:[10,10,12,10], filename:name,
+      image:{type:'jpeg',quality:0.95},
+      html2canvas:{scale:2, backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm', format:'a4', orientation:'portrait'},
+      pagebreak:{mode:['css','legacy'], avoid:['tr','.kpis','h2']}
+    }).from(el).outputPdf('blob');
+    lastPdf=new File([blob], name, {type:'application/pdf'});
+    pdfSheet('Your PDF is ready', name, true, false);
+  }catch(e){
+    pdfSheet('Couldn’t make the PDF','Check your internet connection (the PDF maker is downloaded the first time you use it), then try again.',false,true);
+  }
+}
+function pdfSheet(title,hint,ready,failed){
+  dataSheet(title, esc(hint), '', true,
+    ready ? `<button class="btn" onclick="sharePdf()">Share / Save</button><button class="btn ghost" onclick="downloadPdf()">Download</button>`
+          : failed ? `<button class="btn ghost" style="grid-column:1 / -1" onclick="closeData()">Close</button>` : '');
+  document.getElementById('dataBox').style.display='none';
+}
+async function sharePdf(){
+  if(!lastPdf) return;
+  if(navigator.canShare && navigator.canShare({files:[lastPdf]})){
+    try{ await navigator.share({files:[lastPdf], title:lastPdf.name}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  downloadPdf();
+}
+function downloadPdf(){
+  if(!lastPdf) return;
+  const u=URL.createObjectURL(lastPdf);
+  const a=document.createElement('a'); a.href=u; a.download=lastPdf.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
 
 /* ---------- Init ---------- */
 renderLoans();
+renderMonths();
 const saved=read(DATA_KEY);
 if(saved){ document.getElementById('dataInput').value=saved; generate(true); }
 </script>
