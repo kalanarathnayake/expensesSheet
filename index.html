@@ -170,6 +170,34 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
 .field label{display:block; font-size:12px; font-weight:600; color:var(--subtle); margin:0 4px 5px;}
 .field input{width:100%; padding:13px 14px; border-radius:13px; border:1px solid var(--hair); background:var(--faint); color:var(--text); font-size:16px;}
 .field input::placeholder{color:var(--subtle);}
+
+.top-btns{display:flex; gap:8px;}
+#report{display:none;}
+@media print{
+  :root{padding:0 !important;}
+  body{background:#fff !important; color:#111 !important;}
+  .wrap,.overlay{display:none !important;}
+  #report{display:block;}
+  @page{size:A4; margin:14mm;}
+}
+#report{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#111; font-size:11pt;}
+#report .rep-h{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #8d153a; padding-bottom:8px; margin-bottom:14px;}
+#report .brand{font-size:24pt; font-weight:800; color:#8d153a; letter-spacing:-0.5px;}
+#report .brand small{display:block; font-size:10pt; color:#b8860b; font-weight:600; letter-spacing:0;}
+#report .meta{text-align:right; font-size:9pt; color:#555;}
+#report .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0 4px;}
+#report .kpi{border:1px solid #ddd; border-radius:8px; padding:8px 10px;}
+#report .kpi .l{font-size:8pt; text-transform:uppercase; color:#666; letter-spacing:0.5px;}
+#report .kpi .v{font-size:13pt; font-weight:800; margin-top:2px;}
+#report h2{font-size:12pt; color:#8d153a; margin:18px 0 6px; padding-bottom:3px; border-bottom:1px solid #e5d0d7;}
+#report table{width:100%; border-collapse:collapse; font-size:9.5pt;}
+#report th{text-align:left; background:#f6eef1; color:#5a1026; padding:5px 6px; font-weight:700;}
+#report td{padding:4px 6px; border-bottom:1px solid #eee;}
+#report td.n, #report th.n{text-align:right; white-space:nowrap;}
+#report tr.tot td{font-weight:800; border-top:2px solid #ccc;}
+#report .pos{color:#1e8e3e;} #report .neg{color:#c62828;}
+#report tr{page-break-inside:avoid;}
+#report .foot{margin-top:18px; font-size:8pt; color:#888; text-align:center;}
 </style>
 </head>
 <body>
@@ -179,7 +207,7 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
       <h1>Rupio</h1>
       <div class="cycle" id="cycleLabel">Your money, at a glance</div>
     </div>
-    <button class="pill-btn" id="refreshBtn" onclick="refreshAll()">↻ Refresh</button>
+    <div class="top-btns"><button class="pill-btn" onclick="exportPDF()">⇩ PDF</button><button class="pill-btn" id="refreshBtn" onclick="refreshAll()">↻ Refresh</button></div>
   </div>
 
   <div class="glass paste" id="pasteCard">
@@ -267,6 +295,7 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
   </div>
 </div>
 
+<div id="report"></div>
 <script>
 const PALETTE=['#0a84ff','#ff9f0a','#30d158','#ff453a','#bf5af2','#ff375f','#64d2ff','#ffd60a'];
 const ICONS={'Groceries':'🛒','Transport':'🚗','Food & dining':'🍽️','Social & gifts':'🎁','Bills':'🧾','Health':'💊','Shopping':'🛍️','Other':'📦',
@@ -591,6 +620,65 @@ function refreshAll(){
   loans.forEach(l=>{ l.history=[]; l.ignored=[]; l.balance=l.startBalance; l.lastUpdated=l.startDate; });
   saveLoans();
   if(document.getElementById('dataInput').value.trim()) generate(true); else renderLoans();
+}
+
+
+/* ---------- PDF export (print to PDF) ---------- */
+function exportPDF(){
+  if(!currentTx.length){
+    togglePaste(false);
+    document.getElementById('pasteStatus').textContent='Generate the dashboard first, then export';
+    return;
+  }
+  const tx=currentTx;
+  const income=tx.filter(t=>t.type==='Income'), exp=tx.filter(t=>t.type==='Expense');
+  const cardS=tx.filter(t=>t.type==='Settlement'&&t.category==='Card settlement');
+  const loanS=tx.filter(t=>t.type==='Settlement'&&t.category!=='Card settlement');
+  const I=sum(income), E=sum(exp), CS=sum(cardS), LS=sum(loanS), left=I-E-CS-LS;
+  const pct=v=>I?(v/I*100).toFixed(1)+'%':'–';
+  const table=(rows,total,label)=>`<table><tr><th>${label}</th><th class="n">Amount</th><th class="n">% of income</th></tr>
+    ${rows.map(([n,a])=>`<tr><td>${esc(n)}</td><td class="n">${rs(a)}</td><td class="n">${pct(a)}</td></tr>`).join('')}
+    <tr class="tot"><td>Total</td><td class="n">${rs(total)}</td><td class="n">${pct(total)}</td></tr></table>`;
+  const strip=n=>n.replace(/\s*settlement$/i,'');
+  const cats=groupBy(exp,'category'), inc=groupBy(income,'category');
+  const cards=groupBy(cardS,'details').map(([n,a])=>[strip(n),a]);
+  const lns=groupBy(loanS,'details').map(([n,a])=>[strip(n),a]);
+  const now=new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const cyc=cycleLabel(tx).replace('Cycle · ','');
+
+  const loanHtml = loans.length ? `<table><tr><th>Loan</th><th class="n">Rate</th><th class="n">Original</th><th class="n">Remaining</th><th class="n">Interest / month</th></tr>
+    ${loans.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${l.rate}%</td><td class="n">${l.principal?rs(l.principal):'–'}</td><td class="n neg">${rs(l.balance)}</td><td class="n">${rs(l.balance*(l.rate/100)/12)}</td></tr>`).join('')}</table>
+    ${loans.filter(l=>l.history&&l.history.length).map(l=>`<p style="margin:10px 0 4px;font-weight:700">${esc(l.name)} — payments</p>
+      <table><tr><th>Date</th><th class="n">Paid</th><th class="n">Interest</th><th class="n">Principal</th><th class="n">Balance after</th></tr>
+      ${l.history.map(h=>`<tr><td>${esc(h.date)}</td><td class="n">${rs(h.payment)}</td><td class="n">${rs(h.interest)}</td><td class="n">${rs(h.principal)}</td><td class="n">${rs(h.balanceAfter)}</td></tr>`).join('')}</table>`).join('')}`
+    : '<p>No loans added.</p>';
+
+  const txHtml=`<table><tr><th>Date</th><th>Details</th><th>Type</th><th>Paid by</th><th>Category</th><th class="n">Amount</th></tr>
+    ${tx.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(t=>{const isIn=t.type==='Income';
+      return `<tr><td>${esc(t.date)}</td><td>${esc(t.details)}</td><td>${esc(t.type)}</td><td>${esc(t.paidBy)}</td><td>${esc(t.category)}</td><td class="n ${isIn?'pos':'neg'}">${isIn?'+':'−'}${rs(t.amount)}</td></tr>`;}).join('')}</table>`;
+
+  document.getElementById('report').innerHTML=`
+    <div class="rep-h"><div class="brand">Rupio<small>රුපියල් · Monthly report</small></div>
+      <div class="meta"><b>${esc(cyc)}</b><br>Generated ${esc(now)}<br>${tx.length} entries</div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="l">Income</div><div class="v pos">${rs(I)}</div></div>
+      <div class="kpi"><div class="l">Spending</div><div class="v">${rs(E)}</div></div>
+      <div class="kpi"><div class="l">Settlements</div><div class="v neg">${rs(CS+LS)}</div></div>
+      <div class="kpi"><div class="l">Money left</div><div class="v ${left<0?'neg':'pos'}">${rs(left)}</div></div>
+    </div>
+    <h2>Spending by category</h2>${cats.length?table(cats,E,'Category'):'<p>No spending.</p>'}
+    <h2>Income</h2>${inc.length?table(inc,I,'Source'):'<p>No income.</p>'}
+    <h2>Card settlements</h2>${cards.length?table(cards,CS,'Card'):'<p>None.</p>'}
+    <h2>Loan settlements</h2>${lns.length?table(lns,LS,'Loan'):'<p>None.</p>'}
+    <h2>Your loans</h2>${loanHtml}
+    <h2>All transactions</h2>${txHtml}
+    <div class="foot">Rupio · personal expense report</div>`;
+
+  const oldTitle=document.title;
+  document.title='Rupio report '+cyc.replace(/\s/g,' ');
+  const restore=()=>{document.title=oldTitle; window.removeEventListener('afterprint',restore);};
+  window.addEventListener('afterprint',restore);
+  setTimeout(()=>window.print(),100);
 }
 
 /* ---------- Init ---------- */
