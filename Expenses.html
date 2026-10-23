@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expenses</title>
+<style>
+:root{
+  --bg:#eef1f7; --bg-glow1:rgba(10,132,255,0.18); --bg-glow2:rgba(191,90,242,0.14);
+  --glass:rgba(255,255,255,0.62); --glass-strong:rgba(255,255,255,0.82);
+  --border:rgba(255,255,255,0.75); --hair:rgba(60,60,67,0.12);
+  --text:#1c1c1e; --subtle:#6e6e73; --faint:rgba(120,120,128,0.12);
+  --accent:#0a84ff; --success:#28c76f; --warn:#ff9f0a; --danger:#ff453a; --purple:#bf5af2;
+  --shadow:0 10px 30px rgba(31,38,135,0.10);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#08090c; --bg-glow1:rgba(10,132,255,0.22); --bg-glow2:rgba(191,90,242,0.18);
+    --glass:rgba(255,255,255,0.07); --glass-strong:rgba(30,31,36,0.92);
+    --border:rgba(255,255,255,0.12); --hair:rgba(255,255,255,0.08);
+    --text:#f2f2f7; --subtle:#98989f; --faint:rgba(255,255,255,0.08);
+    --shadow:0 10px 30px rgba(0,0,0,0.5); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#08090c; --bg-glow1:rgba(10,132,255,0.22); --bg-glow2:rgba(191,90,242,0.18);
+  --glass:rgba(255,255,255,0.07); --glass-strong:rgba(30,31,36,0.92);
+  --border:rgba(255,255,255,0.12); --hair:rgba(255,255,255,0.08);
+  --text:#f2f2f7; --subtle:#98989f; --faint:rgba(255,255,255,0.08);
+  --shadow:0 10px 30px rgba(0,0,0,0.5); color-scheme:dark;
+}
+:root{box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*,*::before,*::after{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+  background:
+    radial-gradient(600px 400px at 0% 0%, var(--bg-glow1), transparent 70%),
+    radial-gradient(500px 400px at 100% 20%, var(--bg-glow2), transparent 70%),
+    var(--bg);
+  background-attachment:fixed;
+}
+button{font-family:inherit; cursor:pointer;}
+.wrap{max-width:640px; margin:0 auto; padding:18px 16px 70px;}
+
+.glass{
+  background:var(--glass); border:1px solid var(--border); border-radius:22px; box-shadow:var(--shadow);
+  backdrop-filter:blur(22px) saturate(180%); -webkit-backdrop-filter:blur(22px) saturate(180%);
+}
+
+/* Header */
+.top{display:flex; justify-content:space-between; align-items:flex-end; margin:8px 2px 18px;}
+.top h1{font-size:34px; font-weight:800; letter-spacing:-0.8px; margin:0;}
+.cycle{font-size:13px; color:var(--subtle); margin-top:2px; font-weight:500;}
+.pill-btn{border:none; background:var(--faint); color:var(--accent); font-weight:600; font-size:14px; padding:8px 14px; border-radius:20px;}
+
+/* Paste */
+.paste{padding:16px; margin-bottom:22px;}
+.paste.collapsed .paste-body{display:none;}
+.paste-head{display:flex; justify-content:space-between; align-items:center;}
+.paste-head .t{font-weight:700; font-size:15px;}
+.paste-head .s{font-size:12px; color:var(--subtle); margin-top:2px;}
+textarea{
+  width:100%; min-height:150px; margin-top:12px; resize:vertical;
+  background:var(--faint); border:1px solid var(--hair); border-radius:14px; padding:12px;
+  color:var(--text); font:12px/1.5 ui-monospace,"SF Mono",Menlo,monospace;
+}
+textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offset:-1px;}
+.btn{
+  width:100%; margin-top:12px; padding:15px; border:none; border-radius:16px;
+  background:linear-gradient(135deg,#0a84ff,#5e5ce6); color:#fff; font-weight:700; font-size:16px;
+  box-shadow:0 8px 22px rgba(10,132,255,0.30);
+}
+.btn:active,.pill-btn:active,.icon-btn:active{transform:scale(0.97);}
+.error{display:none; margin-top:10px; padding:10px 12px; border-radius:12px; background:rgba(255,69,58,0.12); color:var(--danger); font-size:13px;}
+
+/* Hero */
+.hero{padding:22px 20px; margin-bottom:12px; position:relative; overflow:hidden;}
+.hero::after{content:""; position:absolute; right:-60px; top:-60px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, rgba(10,132,255,0.25), transparent 70%); pointer-events:none;}
+.hero .lbl{font-size:13px; color:var(--subtle); font-weight:600;}
+.hero .big{font-size:40px; font-weight:800; letter-spacing:-1px; margin:4px 0 6px;}
+.hero .big small{font-size:20px; font-weight:700; color:var(--subtle); margin-right:4px;}
+.hero .note{font-size:13px; color:var(--subtle);}
+.meter{height:8px; border-radius:6px; background:var(--faint); overflow:hidden; display:flex; margin-top:14px;}
+.meter span{height:100%;}
+.meter-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--subtle);}
+.meter-legend i{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px;}
+
+.stats{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:8px;}
+.stat{padding:14px 12px; min-width:0;}
+.stat .l{font-size:11px; font-weight:600; color:var(--subtle); text-transform:uppercase; letter-spacing:0.5px;}
+.stat .v{font-size:15px; font-weight:800; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+/* Sections */
+.section{margin-top:28px;}
+.section-head{display:flex; justify-content:space-between; align-items:center; margin:0 4px 10px; min-height:34px;}
+.section-title{font-size:20px; font-weight:800; letter-spacing:-0.3px;}
+.section-sub{font-size:13px; color:var(--subtle); font-weight:600;}
+.icon-btn{width:34px; height:34px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:22px; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+
+.card{padding:4px 16px;}
+.row{display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--hair);}
+.row:last-child{border-bottom:none;}
+.row .ic{width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0;}
+.row .mid{flex:1; min-width:0;}
+.row .nm{font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.row .mt{font-size:12px; color:var(--subtle); margin-top:2px;}
+.row .amt{font-weight:700; font-size:15px; white-space:nowrap;}
+.row.total .nm,.row.total .amt{font-weight:800;}
+.bar{height:5px; border-radius:4px; background:var(--faint); margin-top:7px; overflow:hidden;}
+.bar span{display:block; height:100%; border-radius:4px;}
+.neg{color:var(--danger);} .pos{color:var(--success);}
+
+/* Donut */
+.donut-wrap{display:flex; justify-content:center; padding:18px 0 6px;}
+.donut-center{font-size:12px; fill:var(--subtle); font-weight:600;}
+.donut-total{font-size:19px; fill:var(--text); font-weight:800;}
+
+/* Loans */
+.loan{padding:16px 0; border-bottom:1px solid var(--hair);}
+.loan:last-child{border-bottom:none;}
+.loan-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+.loan-name{font-size:16px; font-weight:700;}
+.loan-rate{display:inline-block; margin-top:4px; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:rgba(255,159,10,0.15); color:var(--warn);}
+.loan-bal{text-align:right;}
+.loan-bal .v{font-size:20px; font-weight:800; color:var(--danger);}
+.loan-bal .l{font-size:11px; color:var(--subtle); font-weight:600;}
+.loan-meta{display:flex; justify-content:space-between; font-size:12px; color:var(--subtle); margin-top:8px;}
+.loan-hist{margin-top:12px; background:var(--faint); border-radius:12px; padding:4px 12px;}
+.loan-hist .h{display:flex; justify-content:space-between; padding:9px 0; font-size:12.5px; border-bottom:1px solid var(--hair);}
+.loan-hist .h:last-child{border-bottom:none;}
+.loan-hist .h small{display:block; color:var(--subtle); font-size:11px; margin-top:2px;}
+.h-right{display:flex; align-items:center; gap:10px;}
+.rm{border:none; min-width:28px; height:28px; border-radius:14px; background:var(--faint); color:var(--subtle); font-size:12px; font-weight:700; padding:0 9px; flex-shrink:0;}
+.rm.on{background:var(--danger); color:#fff;}
+.rm.restore{background:rgba(10,132,255,0.12); color:var(--accent);}
+.rh{font-size:11px; font-weight:700; color:var(--subtle); text-transform:uppercase; letter-spacing:0.5px; padding:10px 0 2px;}
+.del{margin-top:12px; border:none; background:none; color:var(--danger); font-weight:600; font-size:13px; padding:4px 0;}
+.loan-btns{display:flex; gap:20px; margin-top:12px;}
+.loan-btns .del{margin-top:0;}
+.edit{border:none; background:none; color:var(--accent); font-weight:600; font-size:13px; padding:4px 0;}
+.empty-mini{padding:22px 0; text-align:center; color:var(--subtle); font-size:14px;}
+
+/* Transactions */
+.chips{display:flex; gap:8px; overflow-x:auto; padding:0 4px 12px; scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{border:none; padding:8px 14px; border-radius:20px; background:var(--glass); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:600; white-space:nowrap;}
+.chip.on{background:var(--accent); color:#fff; border-color:transparent;}
+
+.empty{padding:44px 20px; text-align:center; color:var(--subtle);}
+.empty .e{font-size:42px; margin-bottom:8px;}
+
+/* Modal */
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:flex-end; justify-content:center; z-index:50; opacity:0; pointer-events:none; transition:opacity .2s;}
+.overlay.open{opacity:1; pointer-events:auto;}
+.sheet{width:100%; max-width:520px; background:var(--glass-strong); border:1px solid var(--border); border-radius:26px 26px 0 0; padding:10px 18px calc(22px + env(safe-area-inset-bottom,0px)); transform:translateY(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1); backdrop-filter:blur(30px) saturate(180%); -webkit-backdrop-filter:blur(30px) saturate(180%);}
+.overlay.open .sheet{transform:translateY(0);}
+.grabber{width:38px; height:5px; border-radius:3px; background:var(--hair); margin:0 auto 12px;}
+.sheet-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+.sheet-head .t{font-size:18px; font-weight:800;}
+.x{width:30px; height:30px; border-radius:50%; border:none; background:var(--faint); color:var(--subtle); font-size:15px;}
+.field{margin-bottom:10px;}
+.field label{display:block; font-size:12px; font-weight:600; color:var(--subtle); margin:0 4px 5px;}
+.field input{width:100%; padding:13px 14px; border-radius:13px; border:1px solid var(--hair); background:var(--faint); color:var(--text); font-size:16px;}
+.field input::placeholder{color:var(--subtle);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Expenses</h1>
+      <div class="cycle" id="cycleLabel">Your money, at a glance</div>
+    </div>
+    <button class="pill-btn" id="refreshBtn" onclick="refreshAll()">↻ Refresh</button>
+  </div>
+
+  <div class="glass paste" id="pasteCard">
+    <div class="paste-head">
+      <div><div class="t">Your note</div><div class="s" id="pasteStatus">Paste the entries from your “expenses” note</div></div>
+      <button class="pill-btn" id="pasteToggle" onclick="togglePaste()">Hide</button>
+    </div>
+    <div class="paste-body">
+      <textarea id="dataInput" placeholder="2026-10-23 | Salary | 194322.80 | Income | Bank | Salary"></textarea>
+      <button class="btn" onclick="generate()">Generate Dashboard</button>
+      <div id="error" class="error"></div>
+    </div>
+  </div>
+
+  <div id="emptyState" class="glass empty">
+    <div class="e">📲</div>
+    <div>Paste your note above to see your month</div>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div class="glass hero">
+      <div class="lbl">Money left</div>
+      <div class="big" id="heroLeft"></div>
+      <div class="note" id="heroNote"></div>
+      <div class="meter" id="heroMeter"></div>
+      <div class="meter-legend">
+        <span><i style="background:var(--warn)"></i>Spending</span>
+        <span><i style="background:var(--purple)"></i>Card settlements</span>
+        <span><i style="background:var(--danger)"></i>Loan settlements</span>
+        <span><i style="background:var(--success)"></i>Left</span>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+
+    <div class="section">
+      <div class="section-head"><span class="section-title">Spending</span><span class="section-sub" id="spendSub"></span></div>
+      <div class="chips" id="spendChips"></div>
+      <div class="glass card">
+        <div class="donut-wrap" id="donut"></div>
+        <div id="categoryList"></div>
+      </div>
+    </div>
+
+    <div class="section" id="incomeSection">
+      <div class="section-head"><span class="section-title">Income</span></div>
+      <div class="glass card" id="incomeList"></div>
+    </div>
+
+    <div class="section" id="cardSection">
+      <div class="section-head"><span class="section-title">Card settlements</span></div>
+      <div class="glass card" id="cardList"></div>
+    </div>
+
+    <div class="section" id="loanSetSection">
+      <div class="section-head"><span class="section-title">Loan settlements</span></div>
+      <div class="glass card" id="loanSetList"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <span class="section-title">Your loans</span>
+      <button class="icon-btn" onclick="openModal()" aria-label="Add loan">+</button>
+    </div>
+    <div class="glass card" id="loanList"></div>
+  </div>
+
+  <div class="section" id="txSection" style="display:none;">
+    <div class="section-head"><span class="section-title">Transactions</span><span class="section-sub" id="txCount"></span></div>
+    <div class="chips" id="chips"></div>
+    <div class="glass card" id="txList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-head"><span class="t" id="sheetTitle">Add loan</span><button class="x" onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Loan name</label><input id="fName" placeholder="e.g. Gold loan"></div>
+    <div class="field"><label>Annual interest rate (%)</label><input id="fRate" type="number" inputmode="decimal" step="0.01" placeholder="12.25"></div>
+    <div class="field"><label id="balLabel">Current balance (Rs)</label><input id="fBal" type="number" inputmode="decimal" placeholder="176528.22"></div>
+    <div class="field"><label>Original amount (optional)</label><input id="fPrin" type="number" inputmode="decimal" placeholder="800000"></div>
+    <div id="fErr" class="error"></div>
+    <button class="btn" id="sheetBtn" onclick="addLoan()">Add loan</button>
+  </div>
+</div>
+
+<script>
+const PALETTE=['#0a84ff','#ff9f0a','#30d158','#ff453a','#bf5af2','#ff375f','#64d2ff','#ffd60a'];
+const ICONS={'Groceries':'🛒','Transport':'🚗','Food & dining':'🍽️','Social & gifts':'🎁','Bills':'🧾','Health':'💊','Shopping':'🛍️','Other':'📦',
+  'Salary':'💼','Reimbursement':'↩️','Ride income':'🚕','Card settlement':'💳','Loan settlement':'🏦'};
+const DATA_KEY='kalana_expenses_raw_v1', LOAN_KEY='kalana_loans_v2';
+
+function read(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function store(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmt(n){const r=Math.round(n*100)/100; const d=Number.isInteger(r)?0:2; return new Intl.NumberFormat('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}).format(r);}
+function rs(n){return 'Rs '+fmt(n);}
+function tint(hex){return hex+'26';}
+const sum=a=>a.reduce((s,t)=>s+t.amount,0);
+
+let currentTx=[], txFilter='All';
+
+/* ---------- Paste ---------- */
+function togglePaste(force){
+  const c=document.getElementById('pasteCard');
+  const collapse = force!==undefined ? force : !c.classList.contains('collapsed');
+  c.classList.toggle('collapsed', collapse);
+  document.getElementById('pasteToggle').textContent = collapse ? 'Edit' : 'Hide';
+}
+
+function parse(text){
+  return text.split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{
+    const p=line.split('|').map(s=>s.trim());
+    if(p.length<4) return null;
+    const amount=parseFloat((p[2]||'').replace(/,/g,''));
+    if(isNaN(amount)) return null;
+    return {date:p[0], details:p[1], amount, type:p[3], paidBy:p[4]||'', category:p[5]||''};
+  }).filter(Boolean);
+}
+
+function generate(silent){
+  const text=document.getElementById('dataInput').value.trim();
+  const err=document.getElementById('error'); err.style.display='none';
+  if(!text){ if(!silent){err.textContent='Paste your entries first'; err.style.display='block';} return; }
+  const tx=parse(text);
+  if(!tx.length){ err.textContent='No valid entries found — check the format'; err.style.display='block'; return; }
+  store(DATA_KEY,text);
+  render(tx);
+  document.getElementById('pasteStatus').textContent = tx.length+' entries loaded';
+  togglePaste(true);
+}
+
+/* ---------- Cycle (21st to 20th) ---------- */
+function cycleLabel(tx){
+  const dates=tx.map(t=>new Date(t.date)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+  if(!dates.length) return 'Current cycle';
+  const d=dates[0];
+  const start=new Date(d.getFullYear(), d.getDate()>=21?d.getMonth():d.getMonth()-1, 21);
+  const end=new Date(start.getFullYear(), start.getMonth()+1, 20);
+  const f=x=>x.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  return 'Cycle · '+f(start)+' – '+f(end);
+}
+
+/* ---------- Render ---------- */
+function listRows(entries, total, colorFn, iconFn){
+  return entries.map(([name,amt],i)=>{
+    const c=colorFn(name,i), pct=total?amt/total*100:0;
+    return `<div class="row">
+      <div class="ic" style="background:${tint(c)}">${iconFn(name)}</div>
+      <div class="mid"><div class="nm">${esc(name)}</div><div class="bar"><span style="width:${pct.toFixed(1)}%;background:${c}"></span></div></div>
+      <div class="amt">${rs(amt)}</div></div>`;
+  }).join('');
+}
+function groupBy(arr,key){const o={}; arr.forEach(t=>{const k=t[key]||'Other'; o[k]=(o[k]||0)+t.amount;}); return Object.entries(o).sort((a,b)=>b[1]-a[1]);}
+
+function donut(entries,total,label){
+  const r=62, C=2*Math.PI*r; let off=0;
+  const segs=entries.map(([n,a],i)=>{
+    const len=total?a/total*C:0;
+    const s=`<circle r="${r}" cx="80" cy="80" fill="none" stroke="${PALETTE[i%PALETTE.length]}" stroke-width="20" stroke-dasharray="${Math.max(len-2,0.01)} ${C}" stroke-dashoffset="${-off}" stroke-linecap="butt"/>`;
+    off+=len; return s;
+  }).join('');
+  return `<svg width="170" height="170" viewBox="0 0 160 160"><g transform="rotate(-90 80 80)"><circle r="${r}" cx="80" cy="80" fill="none" stroke="var(--faint)" stroke-width="20"/>${segs}</g>
+    <text x="80" y="74" text-anchor="middle" class="donut-center">${label||'Spent'}</text>
+    <text x="80" y="96" text-anchor="middle" class="donut-total">${rs(total)}</text></svg>`;
+}
+
+function render(tx){
+  currentTx=tx;
+  const income=tx.filter(t=>t.type==='Income'), exp=tx.filter(t=>t.type==='Expense');
+  const cardS=tx.filter(t=>t.type==='Settlement'&&t.category==='Card settlement');
+  const loanS=tx.filter(t=>t.type==='Settlement'&&t.category!=='Card settlement');
+  const I=sum(income), E=sum(exp), CS=sum(cardS), LS=sum(loanS), left=I-E-CS-LS;
+
+  document.getElementById('cycleLabel').textContent=cycleLabel(tx);
+  document.getElementById('heroLeft').innerHTML=`<small>Rs</small>${fmt(left)}`;
+  document.getElementById('heroLeft').style.color = left<0?'var(--danger)':'var(--text)';
+  document.getElementById('heroNote').textContent = I ? `${(left/I*100).toFixed(0)}% of ${rs(I)} income remaining` : 'No income logged yet';
+  const base=Math.max(I, E+CS+LS) || 1;
+  document.getElementById('heroMeter').innerHTML=[[E,'var(--warn)'],[CS,'var(--purple)'],[LS,'var(--danger)'],[Math.max(left,0),'var(--success)']]
+    .map(([v,c])=>`<span style="width:${(v/base*100).toFixed(2)}%;background:${c}"></span>`).join('');
+
+  document.getElementById('stats').innerHTML=`
+    <div class="glass stat"><div class="l">Income</div><div class="v pos">${rs(I)}</div></div>
+    <div class="glass stat"><div class="l">Spent</div><div class="v" style="color:var(--warn)">${rs(E)}</div></div>
+    <div class="glass stat"><div class="l">Settled</div><div class="v neg">${rs(CS+LS)}</div></div>`;
+
+  spendData={exp, E, CS, LS, I};
+  renderSpending();
+
+  const inc=groupBy(income,'category');
+  document.getElementById('incomeSection').style.display = inc.length?'block':'none';
+  document.getElementById('incomeList').innerHTML = listRows(inc,I,()=> '#30d158',n=>ICONS[n]||'💰');
+
+  const settleBlock=(id,secId,arr,total,color,icon)=>{
+    const g=groupBy(arr,'details');
+    document.getElementById(secId).style.display = g.length?'block':'none';
+    if(!g.length) return;
+    document.getElementById(id).innerHTML = g.map(([n,a])=>`<div class="row">
+        <div class="ic" style="background:${tint(color)}">${icon}</div>
+        <div class="mid"><div class="nm">${esc(n.replace(/\s*settlement$/i,''))}</div></div>
+        <div class="amt neg">${rs(a)}</div></div>`).join('') +
+      (g.length>1?`<div class="row total"><div class="mid"><div class="nm">Total</div></div><div class="amt neg">${rs(total)}</div></div>`:'');
+  };
+  settleBlock('cardList','cardSection',cardS,CS,'#bf5af2','💳');
+  settleBlock('loanSetList','loanSetSection',loanS,LS,'#ff453a','🏦');
+
+  applyLoanSettlements(loanS);
+  renderChips(); renderTx();
+
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('txSection').style.display='block';
+}
+
+let spendMode='spend', spendData=null;
+function setSpendMode(m){ spendMode=m; renderSpending(); }
+function renderSpending(){
+  if(!spendData) return;
+  const {exp,E,CS,LS,I}=spendData;
+  let entries=groupBy(exp,'category'), total=E, label='Spent';
+  if(spendMode==='all'){
+    if(CS>0) entries.push(['Card settlements',CS]);
+    if(LS>0) entries.push(['Loan settlements',LS]);
+    entries.sort((a,b)=>b[1]-a[1]);
+    total=E+CS+LS; label='Money out';
+  }
+  document.getElementById('spendChips').innerHTML=[['spend','Day-to-day'],['all','Incl. settlements']]
+    .map(([k,t])=>`<button class="chip ${spendMode===k?'on':''}" onclick="setSpendMode('${k}')">${t}</button>`).join('');
+  document.getElementById('spendSub').textContent = I? `${(total/I*100).toFixed(1)}% of income` : '';
+  const icon=n=>n==='Card settlements'?'💳':n==='Loan settlements'?'🏦':(ICONS[n]||'📦');
+  document.getElementById('donut').innerHTML = entries.length? donut(entries,total,label) : '';
+  document.getElementById('categoryList').innerHTML = entries.length
+    ? listRows(entries,total,(n,i)=>PALETTE[i%PALETTE.length],icon)
+    : '<div class="empty-mini">No spending yet</div>';
+}
+
+function renderChips(){
+  document.getElementById('chips').innerHTML=['All','Expense','Income','Settlement']
+    .map(f=>`<button class="chip ${f===txFilter?'on':''}" onclick="setFilter('${f}')">${f==='All'?'All':f+'s'}</button>`).join('');
+}
+function setFilter(f){txFilter=f; renderChips(); renderTx();}
+function renderTx(){
+  const list=currentTx.filter(t=>txFilter==='All'||t.type===txFilter);
+  document.getElementById('txCount').textContent=list.length+' items';
+  document.getElementById('txList').innerHTML = list.length ? list.slice().reverse().map(t=>{
+    const isIn=t.type==='Income';
+    const icon=ICONS[t.category]||(isIn?'💰':'📦');
+    const c=isIn?'#30d158':t.type==='Settlement'?'#bf5af2':'#ff9f0a';
+    return `<div class="row">
+      <div class="ic" style="background:${tint(c)}">${icon}</div>
+      <div class="mid"><div class="nm">${esc(t.details||t.category)}</div><div class="mt">${esc(t.date)}${t.paidBy?' · '+esc(t.paidBy):''}${t.category?' · '+esc(t.category):''}</div></div>
+      <div class="amt ${isIn?'pos':'neg'}">${isIn?'+':'−'}${rs(t.amount)}</div></div>`;
+  }).join('') : '<div class="empty-mini">Nothing here</div>';
+}
+
+/* ---------- Loans (interest first) ---------- */
+let loans=null;
+try{ loans=JSON.parse(read(LOAN_KEY)||'null'); }catch(e){}
+if(!Array.isArray(loans)){
+  loans=[{id:'loan_gold', name:'Gold loan', principal:800000, rate:12.25, balance:176528.22, lastUpdated:'2026-10-23', startBalance:176528.22, startDate:'2026-10-23', history:[], ignored:[]}];
+}
+loans.forEach(l=>{
+  if(l.startBalance===undefined){
+    const h=(l.history||[])[0];
+    l.startBalance = h ? h.balanceAfter + h.payment - h.interest : l.balance;
+    l.startDate = h ? h.date : l.lastUpdated;
+  }
+  l.history=l.history||[]; l.ignored=l.ignored||[];
+});
+store(LOAN_KEY, JSON.stringify(loans));
+const saveLoans=()=>store(LOAN_KEY, JSON.stringify(loans));
+let pendingDelete=null, pendingTimer=null;
+
+function applyPayment(loan,payment,date,sig){
+  const days=Math.max(0,(new Date(date)-new Date(loan.lastUpdated))/864e5);
+  const interest=loan.balance*(loan.rate/100)*(days/365);
+  const iPart=Math.min(payment,interest);
+  loan.balance=Math.max(0, loan.balance+interest-payment);
+  loan.lastUpdated=date;
+  (loan.history=loan.history||[]).push({date,payment,interest:iPart,principal:payment-iPart,balanceAfter:loan.balance,sig});
+}
+function replayLoan(loan){
+  const entries=loan.history.map(h=>({date:h.date, payment:h.payment, sig:h.sig}));
+  loan.balance=loan.startBalance; loan.lastUpdated=loan.startDate; loan.history=[];
+  entries.forEach(e=>applyPayment(loan,e.payment,e.date,e.sig));
+}
+let pendingPay=null;
+function removePayment(loanId, idx){
+  const key=loanId+'#'+idx;
+  if(pendingPay!==key){
+    pendingPay=key; renderLoans();
+    clearTimeout(pendingTimer); pendingTimer=setTimeout(()=>{pendingPay=null; renderLoans();},3000);
+    return;
+  }
+  const loan=loans.find(l=>l.id===loanId); if(!loan) return;
+  const [h]=loan.history.splice(idx,1);
+  if(h && h.sig && !loan.ignored.includes(h.sig)) loan.ignored.push(h.sig);
+  pendingPay=null; replayLoan(loan); saveLoans(); renderLoans();
+}
+function restorePayment(loanId, idx){
+  const l=loans.find(x=>x.id===loanId); if(!l) return;
+  const sig=l.ignored[idx]; if(sig===undefined) return;
+  l.ignored.splice(idx,1);
+  const p=sig.split('|');
+  if(!l.history.some(h=>h.sig===sig)) l.history.push({date:p[0], payment:parseFloat(p[2])||0, sig});
+  l.history.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  replayLoan(l); saveLoans(); renderLoans();
+}
+function applyLoanSettlements(arr){
+  let changed=false;
+  arr.forEach(t=>{
+    const name=t.details.replace(/\s*settlement$/i,'').trim().toLowerCase();
+    const loan=loans.find(l=>l.name.trim().toLowerCase()===name);
+    if(!loan) return;
+    const sig=`${t.date}|${t.details}|${t.amount}`;
+    if((loan.history||[]).some(h=>h.sig===sig)) return;
+    if((loan.ignored||[]).includes(sig)) return;
+    applyPayment(loan,t.amount,t.date,sig); changed=true;
+  });
+  if(changed){saveLoans();}
+  renderLoans();
+}
+
+function renderLoans(){
+  const el=document.getElementById('loanList');
+  if(!loans.length){ el.innerHTML='<div class="empty-mini">No loans yet — tap + to add one</div>'; return; }
+  el.innerHTML=loans.map(l=>{
+    const mi=l.balance*(l.rate/100)/12;
+    const paidPct=l.principal? Math.min(100,Math.max(0,(l.principal-l.balance)/l.principal*100)) : null;
+    const hist=(l.history||[]).map((h,i)=>({h,i})).reverse().map(({h,i})=>{
+      const conf=pendingPay===l.id+'#'+i;
+      return `<div class="h">
+        <div>${esc(h.date)}<small>Interest ${rs(h.interest)} · Principal ${rs(h.principal)}</small></div>
+        <div class="h-right"><div style="text-align:right"><b class="neg">−${rs(h.payment)}</b><small>Bal ${rs(h.balanceAfter)}</small></div>
+        <button class="rm ${conf?'on':''}" onclick="removePayment('${l.id}',${i})" aria-label="Remove payment">${conf?'Remove':'✕'}</button></div></div>`;
+    }).join('');
+    const confirming=pendingDelete===l.id;
+    return `<div class="loan">
+      <div class="loan-top">
+        <div><div class="loan-name">${esc(l.name)}</div><span class="loan-rate">${l.rate}% p.a.</span></div>
+        <div class="loan-bal"><div class="l">Remaining</div><div class="v">${rs(l.balance)}</div></div>
+      </div>
+      ${paidPct!==null?`<div class="bar" style="height:7px;margin-top:14px"><span style="width:${paidPct.toFixed(1)}%;background:var(--success)"></span></div>
+      <div class="loan-meta"><span>${paidPct.toFixed(0)}% of ${rs(l.principal)} repaid</span><span>~${rs(mi)}/mo interest</span></div>`
+      :`<div class="loan-meta"><span>Updated ${esc(l.lastUpdated)}</span><span>~${rs(mi)}/mo interest</span></div>`}
+      ${hist?`<div class="loan-hist">${hist}</div>`:''}
+      ${(l.ignored||[]).length?`<div class="loan-hist"><div class="rh">Removed payments</div>${l.ignored.map((sig,i)=>{const p=sig.split('|'); return `<div class="h"><div>${esc(p[0]||'')}<small>${esc(p[1]||'')}</small></div><div class="h-right"><b style="color:var(--subtle)">${rs(parseFloat(p[2])||0)}</b><button class="rm restore" onclick="restorePayment('${l.id}',${i})">Restore</button></div></div>`;}).join('')}</div>`:''}
+      <div class="loan-btns"><button class="edit" onclick="openModal('${l.id}')">Edit</button><button class="del" onclick="deleteLoan('${l.id}')">${confirming?'Tap again to delete':'Delete loan'}</button></div>
+    </div>`;
+  }).join('');
+}
+function deleteLoan(id){
+  if(pendingDelete!==id){
+    pendingDelete=id; renderLoans();
+    clearTimeout(pendingTimer); pendingTimer=setTimeout(()=>{pendingDelete=null; renderLoans();},3000);
+    return;
+  }
+  loans=loans.filter(l=>l.id!==id); pendingDelete=null; saveLoans(); renderLoans();
+}
+
+let editingId=null;
+function openModal(id){
+  editingId=id||null;
+  const g=x=>document.getElementById(x);
+  const l=editingId?loans.find(x=>x.id===editingId):null;
+  g('sheetTitle').textContent=l?'Edit loan':'Add loan';
+  g('sheetBtn').textContent=l?'Save changes':'Add loan';
+  g('balLabel').textContent=(l&&l.history.length)?'Starting balance, before the payments listed (Rs)':'Current balance (Rs)';
+  g('fName').value=l?l.name:''; g('fRate').value=l?l.rate:'';
+  g('fBal').value=l?l.startBalance:''; g('fPrin').value=(l&&l.principal)?l.principal:'';
+  g('fErr').style.display='none';
+  g('overlay').classList.add('open');
+  if(!l) setTimeout(()=>g('fName').focus(),250);
+}
+function closeModal(){document.getElementById('overlay').classList.remove('open'); document.getElementById('fErr').style.display='none';}
+function addLoan(){
+  const g=id=>document.getElementById(id);
+  const name=g('fName').value.trim(), rate=parseFloat(g('fRate').value), bal=parseFloat(g('fBal').value), prin=parseFloat(g('fPrin').value)||0;
+  const err=g('fErr');
+  if(!name||isNaN(rate)||isNaN(bal)){err.textContent='Enter a name, interest rate and balance'; err.style.display='block'; return;}
+  if(loans.some(l=>l.id!==editingId && l.name.toLowerCase()===name.toLowerCase())){err.textContent='A loan with that name already exists'; err.style.display='block'; return;}
+  if(editingId){
+    const l=loans.find(x=>x.id===editingId);
+    if(l){ l.name=name; l.rate=rate; l.principal=prin; l.startBalance=bal; replayLoan(l); }
+  } else {
+    const today=new Date().toISOString().slice(0,10);
+    loans.push({id:'loan_'+Date.now(), name, principal:prin, rate, balance:bal, lastUpdated:today, startBalance:bal, startDate:today, history:[], ignored:[]});
+  }
+  editingId=null;
+  saveLoans();
+  ['fName','fRate','fBal','fPrin'].forEach(i=>g(i).value='');
+  closeModal();
+  if(currentTx.length) applyLoanSettlements(currentTx.filter(t=>t.type==='Settlement'&&t.category!=='Card settlement'));
+  else renderLoans();
+}
+
+let refreshPending=false, refreshTimer=null;
+function refreshAll(){
+  const b=document.getElementById('refreshBtn');
+  if(!refreshPending){
+    refreshPending=true; b.textContent='Tap to confirm'; b.style.color='var(--danger)';
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(()=>{refreshPending=false; b.textContent='↻ Refresh'; b.style.color='';},3000);
+    return;
+  }
+  clearTimeout(refreshTimer); refreshPending=false; b.textContent='↻ Refresh'; b.style.color='';
+  loans.forEach(l=>{ l.history=[]; l.ignored=[]; l.balance=l.startBalance; l.lastUpdated=l.startDate; });
+  saveLoans();
+  if(document.getElementById('dataInput').value.trim()) generate(true); else renderLoans();
+}
+
+/* ---------- Init ---------- */
+renderLoans();
+const saved=read(DATA_KEY);
+if(saved){ document.getElementById('dataInput').value=saved; generate(true); }
+</script>
+</body>
+</html>
