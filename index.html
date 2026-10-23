@@ -209,6 +209,20 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
 .sheet-actions .btn{margin-top:10px;}
 .btn.ghost{background:var(--faint); color:var(--accent); box-shadow:none;}
 .ok{display:none; margin-top:10px; padding:10px 12px; border-radius:12px; background:rgba(40,199,111,0.14); color:var(--success); font-size:13px;}
+
+.undo{display:none; align-items:center; gap:10px; padding:12px 14px; margin-bottom:16px; border-radius:16px;}
+.undo.show{display:flex;}
+.undo .t{flex:1; font-size:14px; font-weight:600;}
+.undo .t small{display:block; font-weight:500; color:var(--subtle); font-size:12px; margin-top:2px;}
+.undo-btn{border:none; background:var(--accent); color:#fff; font-weight:700; font-size:14px; padding:9px 16px; border-radius:12px;}
+.warnbox{margin:4px 0 10px; padding:12px 14px; border-radius:14px; background:rgba(255,159,10,0.15); color:#a35a00; font-size:14px; font-weight:600; line-height:1.45;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .warnbox{color:#ffb340;} }
+:root[data-theme="dark"] .warnbox{color:#ffb340;}
+.sumlist{display:flex; flex-direction:column; gap:8px; margin:6px 0 10px; font-size:14px; line-height:1.45;}
+.sumlist div{display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:12px; background:var(--faint);}
+.sumlist b{white-space:nowrap;}
+.btn.danger{background:linear-gradient(135deg,#ff453a,#d70015); box-shadow:0 8px 22px rgba(255,69,58,0.28);}
+.linkbtn{border:none; background:none; color:var(--accent); font-weight:700; font-size:13px; padding:4px 2px;}
 </style>
 </head>
 <body>
@@ -219,6 +233,12 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
       <div class="cycle" id="cycleLabel">Your money, at a glance</div>
     </div>
     <div class="top-btns"><button class="pill-btn" onclick="exportPDF()">⇩ PDF</button><button class="pill-btn" id="refreshBtn" onclick="refreshAll()">↻ Refresh</button></div>
+  </div>
+
+  <div class="glass undo" id="undoBanner">
+    <div class="t" id="undoText">New month started</div>
+    <button class="undo-btn" onclick="askUndo()">Undo</button>
+    <button class="x" onclick="hideUndoBanner()" aria-label="Hide">✕</button>
   </div>
 
   <div class="glass paste" id="pasteCard">
@@ -290,7 +310,7 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
     <div class="section-head"><span class="section-title">Months &amp; backup</span></div>
     <div class="glass card">
       <div class="tools">
-        <button class="tool-btn" id="newMonthBtn" onclick="startNewMonth()"><span class="i">🗓️</span><span id="newMonthTxt">New month</span></button>
+        <button class="tool-btn" id="newMonthBtn" onclick="startNewMonth()"><span class="i">🗓️</span><span>New month</span></button>
         <button class="tool-btn" onclick="openBackup()"><span class="i">⬆️</span>Back up</button>
         <button class="tool-btn" onclick="openRestore()"><span class="i">⬇️</span>Restore</button>
       </div>
@@ -664,16 +684,47 @@ function refreshAll(){
 const MONTHS_KEY='rupio_months_v1';
 let months=[]; try{ months=JSON.parse(read(MONTHS_KEY)||'[]'); if(!Array.isArray(months)) months=[]; }catch(e){ months=[]; }
 const saveMonths=()=>store(MONTHS_KEY, JSON.stringify(months));
-let nmPending=false, nmTimer=null, pendingMonth=null, monthTimer=null;
+let pendingMonth=null, monthTimer=null;
+const UNDO_KEY='rupio_undo_v1', UNDO_HIDE_KEY='rupio_undo_hidden_v1';
+
+function cycleEnd(tx){
+  const dates=tx.map(t=>new Date(t.date)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+  if(!dates.length) return null;
+  const d=dates[0];
+  const start=new Date(d.getFullYear(), d.getDate()>=21?d.getMonth():d.getMonth()-1, 21);
+  return new Date(start.getFullYear(), start.getMonth()+1, 20);
+}
 
 function startNewMonth(){
-  const txt=document.getElementById('newMonthTxt'), btn=document.getElementById('newMonthBtn');
-  if(!nmPending){
-    nmPending=true; txt.textContent='Tap to confirm'; btn.classList.add('warn');
-    clearTimeout(nmTimer); nmTimer=setTimeout(()=>{nmPending=false; txt.textContent='New month'; btn.classList.remove('warn');},3500);
-    return;
+  const tx=currentTx;
+  let rows='', warn='';
+  if(tx.length){
+    const I=sum(tx.filter(t=>t.type==='Income')), E=sum(tx.filter(t=>t.type==='Expense'));
+    const ST=sum(tx.filter(t=>t.type==='Settlement'));
+    rows+=`<div><span>Close <b>${esc(cycleLabel(tx).replace('Cycle · ',''))}</b></span><b>${tx.length} entries</b></div>`;
+    rows+=`<div><span>Money left</span><b class="${I-E-ST<0?'neg':'pos'}">${rs(I-E-ST)}</b></div>`;
+    const end=cycleEnd(tx), today=new Date(); today.setHours(0,0,0,0);
+    if(end && today<end){
+      const days=Math.round((end-today)/864e5);
+      warn=`Your cycle ends on ${end.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} — ${days} day${days===1?'':'s'} left. Start anyway?`;
+    }
+  } else {
+    warn='No note is loaded, so no month summary will be saved. Only loan balances will carry forward.';
   }
-  clearTimeout(nmTimer); nmPending=false; txt.textContent='New month'; btn.classList.remove('warn');
+  rows+= loans.length
+    ? `<div><span>${loans.map(l=>esc(l.name)).join(', ')}</span><b>carry forward</b></div>`
+    : `<div><span>Loans</span><b>none</b></div>`;
+  dataSheet('Start a new month?',
+    `${warn?`<div class="warnbox">${warn}</div>`:''}<div class="sumlist">${rows}</div>The pasted note will be cleared from Rupio (your note in Notes is not touched). You can undo this later.`,
+    '', true,
+    `<button class="btn ghost" onclick="closeData()">Cancel</button><button class="btn danger" onclick="doNewMonth()">Start new month</button>`);
+  document.getElementById('dataBox').style.display='none';
+}
+
+function doNewMonth(){
+  store(UNDO_KEY, JSON.stringify({at:new Date().toISOString(), label: currentTx.length?cycleLabel(currentTx).replace('Cycle · ',''):'',
+    loans: JSON.parse(JSON.stringify(loans)), months: JSON.parse(JSON.stringify(months)), note: read(DATA_KEY)||''}));
+  store(UNDO_HIDE_KEY,'');
 
   if(currentTx.length){
     const tx=currentTx;
@@ -700,14 +751,48 @@ function startNewMonth(){
   document.getElementById('cycleLabel').textContent='New cycle started';
   document.getElementById('pasteStatus').textContent='New month started — paste your fresh note';
   togglePaste(false);
-  renderLoans(); renderMonths();
+  closeData();
+  renderLoans(); renderMonths(); renderUndo();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function undoSnapshot(){ try{ return JSON.parse(read(UNDO_KEY)||'null'); }catch(e){ return null; } }
+function renderUndo(){
+  const snap=undoSnapshot(), el=document.getElementById('undoBanner');
+  if(!snap || read(UNDO_HIDE_KEY)==='1'){ el.classList.remove('show'); return; }
+  const when=new Date(snap.at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('undoText').innerHTML=`New month started<small>${snap.label?esc(snap.label)+' closed · ':''}${esc(when)}</small>`;
+  el.classList.add('show');
+}
+function hideUndoBanner(){ store(UNDO_HIDE_KEY,'1'); renderUndo(); renderMonths(); }
+function askUndo(){
+  const snap=undoSnapshot(); if(!snap) return;
+  const when=new Date(snap.at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  dataSheet('Undo new month?',
+    `This puts Rupio back exactly as it was on <b>${esc(when)}</b>: your loans, payment history, past months and pasted note. Any loan changes made since then will be replaced.`,
+    '', true,
+    `<button class="btn ghost" onclick="closeData()">Cancel</button><button class="btn" onclick="doUndo()">Undo</button>`);
+  document.getElementById('dataBox').style.display='none';
+}
+function doUndo(){
+  const snap=undoSnapshot(); if(!snap) return;
+  loans=(snap.loans||[]).map(l=>Object.assign({history:[],ignored:[],closedSigs:[],archived:[]},l));
+  months=Array.isArray(snap.months)?snap.months:[];
+  saveLoans(); saveMonths();
+  store(DATA_KEY, snap.note||'');
+  store(UNDO_KEY,''); store(UNDO_HIDE_KEY,'');
+  document.getElementById('dataInput').value=snap.note||'';
+  if((snap.note||'').trim()) generate(true);
+  else{ currentTx=[]; document.getElementById('dashboard').style.display='none'; document.getElementById('txSection').style.display='none'; document.getElementById('emptyState').style.display='block'; }
+  closeData(); renderLoans(); renderMonths(); renderUndo();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function renderMonths(){
   const el=document.getElementById('monthList');
-  if(!months.length){ el.innerHTML='<div class="empty-mini" style="padding:8px 0 16px">No past months yet</div>'; return; }
-  el.innerHTML=months.map((m,i)=>{
+  const undoLink = (undoSnapshot() && read(UNDO_HIDE_KEY)==='1') ? '<div style="padding:0 0 10px"><button class="linkbtn" onclick="askUndo()">↶ Undo last new month</button></div>' : '';
+  if(!months.length){ el.innerHTML=undoLink+'<div class="empty-mini" style="padding:8px 0 16px">No past months yet</div>'; return; }
+  el.innerHTML=undoLink+months.map((m,i)=>{
     const conf=pendingMonth===i;
     return `<div class="row">
       <div class="ic" style="background:${tint('#8d153a')}">🗓️</div>
@@ -896,6 +981,7 @@ function downloadPdf(){
 /* ---------- Init ---------- */
 renderLoans();
 renderMonths();
+renderUndo();
 const saved=read(DATA_KEY);
 if(saved){ document.getElementById('dataInput').value=saved; generate(true); }
 </script>
