@@ -85,8 +85,8 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
 .error{display:none; margin-top:10px; padding:10px 12px; border-radius:12px; background:rgba(255,69,58,0.12); color:var(--danger); font-size:13px;}
 
 /* Hero */
-.hero{padding:22px 20px; margin-bottom:12px; position:relative; overflow:hidden;}
-.hero::after{content:""; position:absolute; right:-60px; top:-60px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, rgba(10,132,255,0.25), transparent 70%); pointer-events:none;}
+.hero{--glow:rgba(10,132,255,0.25); padding:22px 20px; margin-bottom:12px; position:relative; overflow:hidden;}
+.hero::after{content:""; position:absolute; right:-60px; top:-60px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, var(--glow), transparent 70%); pointer-events:none;}
 .hero .lbl{font-size:13px; color:var(--subtle); font-weight:600;}
 .hero .big{font-size:40px; font-weight:800; letter-spacing:-1px; margin:4px 0 6px;}
 .hero .big small{font-size:20px; font-weight:700; color:var(--subtle); margin-right:4px;}
@@ -95,6 +95,19 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
 .meter span{height:100%;}
 .meter-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--subtle);}
 .meter-legend i{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px;}
+.meter-legend b{color:var(--text); font-weight:700; margin-left:4px;}
+
+/* Swipeable summary cards */
+.hero-swipe{display:flex; gap:16px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:none; overscroll-behavior-x:contain; position:relative; margin:-10px -16px -12px; padding:10px 16px 24px; scroll-padding:0 16px;}
+.hero-swipe::-webkit-scrollbar{display:none;}
+.hero-swipe::after{content:""; flex:0 0 1px;}
+.hero-swipe > .hero{flex:0 0 100%; scroll-snap-align:start; scroll-snap-stop:always; margin-bottom:0;}
+#cardSlide{--glow:rgba(191,90,242,0.25);}
+#loanSlide{--glow:rgba(255,69,58,0.18);}
+.dots{display:flex; justify-content:center; align-items:center; gap:6px; height:8px; margin:0 0 14px;}
+.dots button{width:7px; height:7px; padding:0; border:none; border-radius:4px; background:var(--subtle); opacity:.35; transition:width .2s, opacity .2s;}
+.dots button.on{width:18px; background:var(--accent); opacity:1;}
+@media (prefers-reduced-motion: reduce){ .dots button{transition:none;} }
 
 .stats{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:8px;}
 .stat{padding:14px 12px; min-width:0;}
@@ -262,18 +275,35 @@ textarea:focus, .field input:focus{outline:2px solid var(--accent); outline-offs
   </div>
 
   <div id="dashboard" style="display:none;">
-    <div class="glass hero">
-      <div class="lbl">Money left</div>
-      <div class="big" id="heroLeft"></div>
-      <div class="note" id="heroNote"></div>
-      <div class="meter" id="heroMeter"></div>
-      <div class="meter-legend">
-        <span><i style="background:var(--warn)"></i>Spending</span>
-        <span><i style="background:var(--purple)"></i>Card settlements</span>
-        <span><i style="background:var(--danger)"></i>Loan settlements</span>
-        <span><i style="background:var(--success)"></i>Left</span>
+    <div class="hero-swipe" id="heroSwipe" aria-label="Summary cards, swipe for more">
+      <div class="glass hero" id="moneySlide">
+        <div class="lbl">Money left</div>
+        <div class="big" id="heroLeft"></div>
+        <div class="note" id="heroNote"></div>
+        <div class="meter" id="heroMeter"></div>
+        <div class="meter-legend">
+          <span><i style="background:var(--warn)"></i>Spending</span>
+          <span><i style="background:var(--purple)"></i>Card settlements</span>
+          <span><i style="background:var(--danger)"></i>Loan settlements</span>
+          <span><i style="background:var(--success)"></i>Left</span>
+        </div>
+      </div>
+      <div class="glass hero" id="cardSlide">
+        <div class="lbl">On your cards</div>
+        <div class="big" id="cardBig" style="color:var(--purple)"></div>
+        <div class="note" id="cardNote"></div>
+        <div class="meter" id="cardMeter"></div>
+        <div class="meter-legend" id="cardLegend"></div>
+      </div>
+      <div class="glass hero" id="loanSlide" style="display:none;">
+        <div class="lbl">Your loans</div>
+        <div class="big" id="loanBig" style="color:var(--danger)"></div>
+        <div class="note" id="loanNote"></div>
+        <div class="meter" id="loanMeter"></div>
+        <div class="meter-legend" id="loanLegend"></div>
       </div>
     </div>
+    <div class="dots" id="heroDots"></div>
     <div class="stats" id="stats"></div>
 
     <div class="section">
@@ -367,6 +397,7 @@ const DATA_KEY='kalana_expenses_raw_v1', LOAN_KEY='kalana_loans_v2';
 /* Payment methods that are credit cards. Spending on these goes on the card and only
    comes off Money left when you log that card's settlement. Add new cards here. */
 const CARDS=['PPCard','ComCard','AMEX','SeyCC'];
+const CARD_COLORS=['#bf5af2','#0a84ff','#ff9f0a','#64d2ff'];
 
 function read(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function store(k,v){try{localStorage.setItem(k,v);}catch(e){}}
@@ -493,6 +524,11 @@ function render(tx){
   document.getElementById('incomeList').innerHTML = listRows(inc,I,()=> '#30d158',n=>ICONS[n]||'💰');
 
   const dues=cardDues(cardExp);
+  const cardColor=c=>CARD_COLORS[CARDS.indexOf(c)%CARD_COLORS.length];
+  document.getElementById('cardBig').innerHTML=`<small>Rs</small>${fmt(EK)}`;
+  document.getElementById('cardNote').textContent = cardExp.length ? `${cardExp.length} purchase${cardExp.length>1?'s':''} this cycle, not paid yet` : 'No card purchases this cycle';
+  document.getElementById('cardMeter').innerHTML = dues.map(([c,d])=>`<span style="width:${(EK?d.amount/EK*100:0).toFixed(2)}%;background:${cardColor(c)}"></span>`).join('');
+  document.getElementById('cardLegend').innerHTML = dues.map(([c,d])=>`<span><i style="background:${cardColor(c)}"></i>${esc(c)}<b>${rs(d.amount)}</b></span>`).join('');
   document.getElementById('cardDueSection').style.display = dues.length?'block':'none';
   document.getElementById('cardDueList').innerHTML = dues.map(([c,d])=>`<div class="row">
       <div class="ic" style="background:${tint('#bf5af2')}">💳</div>
@@ -520,6 +556,7 @@ function render(tx){
   document.getElementById('emptyState').style.display='none';
   document.getElementById('dashboard').style.display='block';
   document.getElementById('txSection').style.display='block';
+  renderDots();
 }
 
 let spendMode='spend', spendData=null;
@@ -635,6 +672,7 @@ function applyLoanSettlements(arr){
 }
 
 function renderLoans(){
+  renderLoanSlide();
   const el=document.getElementById('loanList');
   if(!loans.length){ el.innerHTML='<div class="empty-mini">No loans yet — tap + to add one</div>'; return; }
   el.innerHTML=loans.map(l=>{
@@ -1018,6 +1056,45 @@ function downloadPdf(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
+
+/* ---------- Swipeable summary cards ---------- */
+function renderLoanSlide(){
+  const slide=document.getElementById('loanSlide');
+  slide.style.display = loans.length ? '' : 'none';
+  if(loans.length){
+    const total=loans.reduce((a,l)=>a+l.balance,0), mi=loans.reduce((a,l)=>a+l.balance*(l.rate/100)/12,0);
+    const color=i=>PALETTE[(i+3)%PALETTE.length];
+    document.getElementById('loanBig').innerHTML=`<small>Rs</small>${fmt(total)}`;
+    document.getElementById('loanNote').textContent=`~${rs(mi)} interest a month across ${loans.length} loan${loans.length>1?'s':''}`;
+    document.getElementById('loanMeter').innerHTML=loans.map((l,i)=>`<span style="width:${(total?l.balance/total*100:0).toFixed(2)}%;background:${color(i)}"></span>`).join('');
+    document.getElementById('loanLegend').innerHTML=loans.map((l,i)=>`<span><i style="background:${color(i)}"></i>${esc(l.name)}<b>${rs(l.balance)}</b></span>`).join('');
+  }
+  renderDots();
+}
+const SWIPE_PAD=16; // matches .hero-swipe side padding
+function heroSlides(){ return [...document.querySelectorAll('#heroSwipe > .hero')].filter(s=>s.style.display!=='none'); }
+function activeSlide(){
+  const sw=document.getElementById('heroSwipe'); let best=0, dist=Infinity;
+  heroSlides().forEach((s,i)=>{ const d=Math.abs(s.offsetLeft-SWIPE_PAD-sw.scrollLeft); if(d<dist){dist=d; best=i;} });
+  return best;
+}
+function renderDots(){
+  const slides=heroSlides(), dots=document.getElementById('heroDots');
+  dots.style.display = slides.length>1 ? 'flex' : 'none';
+  dots.innerHTML = slides.map((s,i)=>`<button onclick="goSlide(${i})" aria-label="Show card ${i+1} of ${slides.length}"></button>`).join('');
+  updateDots();
+}
+function updateDots(){
+  const i=activeSlide();
+  [...document.getElementById('heroDots').children].forEach((b,j)=>b.classList.toggle('on', j===i));
+}
+function goSlide(i){
+  const s=heroSlides()[i]; if(!s) return;
+  const reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('heroSwipe').scrollTo({left:s.offsetLeft-SWIPE_PAD, behavior:reduce?'auto':'smooth'});
+}
+let swipeFrame=0;
+document.getElementById('heroSwipe').addEventListener('scroll',()=>{ cancelAnimationFrame(swipeFrame); swipeFrame=requestAnimationFrame(updateDots); },{passive:true});
 
 /* ---------- Init ---------- */
 renderLoans();
